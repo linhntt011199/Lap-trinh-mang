@@ -52,8 +52,7 @@ void getDomainName(char *IPAddress) {
         	printf("Not found information\n");
         	return;
     	}
-    	struct hostent *remoteHost;
-    	remoteHost = gethostbyaddr(&addr, 4, AF_INET);
+    	struct hostent *remoteHost = gethostbyaddr(&addr, sizeof(addr), AF_INET);
     	if (remoteHost == NULL) {
     		printf("Not found information\n");
     		return;
@@ -61,10 +60,7 @@ void getDomainName(char *IPAddress) {
     	
     	printf("Official name: %s\n", remoteHost->h_name);
     	printf("Alias name:\n");
-    	char **pAlias;
-    	for (pAlias = remoteHost->h_aliases; *pAlias != 0; pAlias++) {
-            printf("%s\n", *pAlias);
-        }
+    	for (int i = 0; remoteHost->h_aliases[i] != NULL; i ++) printf("%s\n", remoteHost->h_aliases[i]);
 }
 
 int main(int argc, char *argv[]) {
@@ -73,8 +69,11 @@ int main(int argc, char *argv[]) {
             if (isValidIpAddress(argv[2]) == 1) getDomainName(argv[2]);
             else printf("Wrong parameter\n");
         } else {
-            if (isValidIpAddress(argv[2]) == 1) printf("Wrong parameter\n");
-            else getIPAddress(argv[2]);
+            if (strcmp(argv[1], "2") == 0) {
+            	if (isValidIpAddress(argv[2]) == 1) printf("Wrong parameter\n");
+            	else getIPAddress(argv[2]);
+            }
+            else printf("Wrong parameter\n");
         }
         
     } else return 0;
