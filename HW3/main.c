@@ -259,11 +259,11 @@ int isValidIpAddress(char *ipAddress) {
             continue;
         }
         if ((*ipAddress < '0') || (*ipAddress > '9')) return 0;
-        if ((accum = accum * 10 + *ipAddress - '0') > 255) return 0;
+        //if ((accum = accum * 10 + *ipAddress - '0') > 255) return 0;
         chcnt++;
         ipAddress++;
     }
-    //if (segs != 3) return 0;
+    if (segs != 3) return 0;
     if (chcnt == 0) return 0;
     return 1;
 }
