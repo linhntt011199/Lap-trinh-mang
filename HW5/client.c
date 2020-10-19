@@ -43,12 +43,21 @@ int main(int argc, char **argv) {
     	if (tmp != NULL) *tmp = '\0';
         int flag = 0;
     	for (int i = 0; i < strlen(sendline); i ++) 
-    	    if (sendline[i] != ' ' || sendline[i] != '\0')  {
+    	    if (sendline[i] != ' ' && sendline[i] != '\0')  {
     	    	flag = 1;
     	    	break;
     	    }
     	if (flag == 0) break; 
     	send(sockfd, sendline, strlen(sendline), 0);
+    	int n = recv(sockfd, recvline, MAXLINE, 0);
+    	if (n == 0) {
+    	    perror("The server terminated prematurely");
+    	    exit(4);
+    	    return 0;
+    	} else {
+    	    recvline[n] = '\0';
+    	    printf("%s\n", recvline);
+    	}
     }
     return 0;
 }

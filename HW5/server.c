@@ -121,14 +121,24 @@ int main(int argc, char *argv[]) {
     	printf("%s\n", "Received request...");
     	char username[255], password[255];
     	while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
+    	    char prin[MAXLINE];
     	    buf[n] = '\0';
+    	    /*int f = 0;
+    	    for (int i = 0; i < n; i ++) 
+    	        if (buf[i] != ' ') {
+    	            f = 1;
+    	            break;
+    	        }
+    	    if (f == 0) return 0;*/
     	    if (signedIn == 0) {
     	    	strcpy(username, buf);
     	    	NODE *tmp = head;
     	    	int flag = 0;
     	    	while (NULL != tmp) {
                     if (strcmp(tmp->username, username) == 0) {
-            	        printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), "Insert password");
+            	        //printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), "Insert password");
+            	        strcpy(prin, "Insert password");
+            	        send(connfd, prin, strlen(prin), 0);
             	    	flag = 1;
             	    	int count = 0;
             	    	do {
@@ -136,19 +146,31 @@ int main(int argc, char *argv[]) {
             		    buf[n] = '\0';
     			    strcpy(password, buf);
             		    if (strcmp(tmp->password, password) == 0) {
-            	    	        if (tmp->status != 1) 				    printf("[%s:%d]: %s\n", 					   	inet_ntoa(cliaddr.sin_addr), 						ntohs(cliaddr.sin_port), 						"Account not ready");
+            	    	        if (tmp->status != 1)  				    //printf("[%s:%d]: %s\n", 					   	inet_ntoa(cliaddr.sin_addr), 						ntohs(cliaddr.sin_port), 						"Account not ready");
+            	    	            { strcpy(prin, "Account not ready");
+            	        	    send(connfd, prin, strlen(prin), 0);}
             	    	    	 else { 
-            	    	    	     printf("[%s:%d]: %s\n", 					    	inet_ntoa(cliaddr.sin_addr), 						ntohs(cliaddr.sin_port), 						"OK");
+            	    	    	     //printf("[%s:%d]: %s\n", 					    	inet_ntoa(cliaddr.sin_addr), 						ntohs(cliaddr.sin_port), 						"OK");
+            	    	    	     strcpy(prin, "OK");
+            	        	     send(connfd, prin, strlen(prin), 0);
             	    		     signedIn = 1;
             	    		 }		
             	            break;
                 	    } else {
             	    	        count ++;
-            	    	        printf("[%s:%d]: %s\n", 					    inet_ntoa(cliaddr.sin_addr), 					    ntohs(cliaddr.sin_port), 					    "not OK");
+            	    	        //printf("[%s:%d]: %s\n", 					    inet_ntoa(cliaddr.sin_addr), 					    ntohs(cliaddr.sin_port), 					    "not OK");
+            	    	        strcpy(prin, "not OK\n");
+            	        	send(connfd, prin, strlen(prin), 0);
+            	        	if (count != 3) {
+            	        	    strcpy(prin, "Insert password");
+            	        	    send(connfd, prin, strlen(prin), 0);
+            	        	}
             	    	      }
             	    	} while (count != 3);
             	 	if (count == 3) {
-            		    printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), 					"Account is blocked");
+            		    //printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), 					"Account is blocked");
+            		    strcpy(prin, "Account is blocked");
+            	            send(connfd, prin, strlen(prin), 0);
             		    tmp->status = 0;
                 	    printList(head);
             		}	
@@ -156,7 +178,9 @@ int main(int argc, char *argv[]) {
              	    }
              	tmp = tmp->pNext;
     	   	}
-    	   	if (flag == 0) printf("[%s:%d]: %s\n", 				inet_ntoa(cliaddr.sin_addr), 		    					ntohs(cliaddr.sin_port), 					"Wrong account");
+    	   	if (flag == 0) {//printf("[%s:%d]: %s\n", 				inet_ntoa(cliaddr.sin_addr), 		    					ntohs(cliaddr.sin_port), 					"Wrong account");
+    	   	    strcpy(prin, "Wrong account");
+            	    send(connfd, prin, strlen(prin), 0);}
     	    }
     	    
     	    else {
@@ -170,7 +194,9 @@ int main(int argc, char *argv[]) {
     	            for (int i = 0; i < strlen(buf); i ++) {
     	    	    	if ((buf[i] >= 48 && buf[i] <= 57) || 				(buf[i] >= 65 && buf[i] <= 90) || 					(buf[i] >= 97 && buf[i] <= 122)) {
     	    	    	} else {
-    	    	            printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 		    					ntohs(cliaddr.sin_port), "Error");
+    	    	            //printf("[%s:%d]: %s\n", 					inet_ntoa(cliaddr.sin_addr), 		    					ntohs(cliaddr.sin_port), "Error");
+    	    	            strcpy(prin, "Error");
+            	            send(connfd, prin, strlen(prin), 0);
     	    	            flag = 1;
     	    	            break;
     	    	    	}
@@ -190,10 +216,16 @@ int main(int argc, char *argv[]) {
     	    	            }
     	    	    	mahoa1[m] = '\0';
     	    	    	mahoa2[k] = '\0';
-    	    	    	printf("[%s:%d]: %s%s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), 					mahoa1, mahoa2);
+    	    	    	strcat(mahoa1, mahoa2);
+    	    	    	strcpy(prin, mahoa1);
+            	        send(connfd, prin, strlen(prin), 0);
+    	    	    	//printf("[%s:%d]: %s%s\n", 					inet_ntoa(cliaddr.sin_addr), 					ntohs(cliaddr.sin_port), 					mahoa1, mahoa2);
     	           }
     	        } else {
-    	            printf("[%s:%d]: %s %s\n", 			       inet_ntoa(cliaddr.sin_addr), 		    	    		ntohs(cliaddr.sin_port), "Goodbye", username);
+    	            //printf("[%s:%d]: %s %s\n", 			       inet_ntoa(cliaddr.sin_addr), 		    	    		ntohs(cliaddr.sin_port), "Goodbye", username);
+    	            strcpy(prin, "Goodbye ");
+    	            strcat(prin, username);
+    	            send(connfd, prin, strlen(prin), 0);
     	            return 0;
     	        }
             }
