@@ -121,8 +121,7 @@ int main(int argc, char *argv[]) {
     	printf("%s\n", "Received request...");
     	char username[255], password[255];
     	while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
-    	    char *temp = strstr(buf, "\n");
-    	    if (temp != NULL) *temp = '\0';
+    	    buf[n] = '\0';
     	    if (signedIn == 0) {
     	    	strcpy(username, buf);
     	    	NODE *tmp = head;
@@ -134,8 +133,7 @@ int main(int argc, char *argv[]) {
             	    	int count = 0;
             	    	do {
             		    n = recv(connfd, buf, MAXLINE, 0); 
-            		    char *temp = strstr(buf, "\n");
-    	    		    if (temp != NULL) *temp = '\0';
+            		    buf[n] = '\0';
     			    strcpy(password, buf);
             		    if (strcmp(tmp->password, password) == 0) {
             	    	        if (tmp->status != 1) 				    printf("[%s:%d]: %s\n", 					   	inet_ntoa(cliaddr.sin_addr), 						ntohs(cliaddr.sin_port), 						"Account not ready");
