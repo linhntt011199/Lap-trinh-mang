@@ -56,8 +56,11 @@ int main(int argc, char *argv[]) {
     	if (sendBytes < 0) {
     	    perror("Error: ");
     	    return 0;
-    	}    
-    }
+    	} 
+    	int rcvBytes = recvfrom(sockfd, buffer, BUFF_SIZE, 0, (struct 		sockaddr *)&servaddr, &len);
+    	buffer[rcvBytes] = '\0';
+    	printf("%s\n", buffer);
+     }
   
     close(sockfd); 
     return 0; 
