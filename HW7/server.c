@@ -7,11 +7,19 @@
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
 #include <sys/wait.h>
+#include <pthread.h>
+#include <stdint.h>
   
 #define MAXLINE 1024 
 
-typedef struct Node 
-{
+pthread_mutex_t mutex;
+struct CLIENT {
+    char username[50];
+    int connfd;
+};
+struct CLIENT clients[20];
+int dem = 0;
+typedef struct Node {
     char username[50];
     char password[50];
     int status;
@@ -84,6 +92,136 @@ void sig_chld(int signo) {
     	printf("child %d terminated\n", pid);
     }
 
+void sendTo(char *msg, int curr, char username[]) {
+    int i;
+    pthread_mutex_lock(&mutex);
+    
+    for (int i = 0; i < dem; i ++) {
+    	
+        if (clients[i].connfd != curr && strcmp(clients[i].username, username) == 0) {
+            strcat(msg, "\n");
+            send(clients[i].connfd, msg, strlen(msg), 0);
+         }
+     }
+     pthread_mutex_unlock(&mutex);
+}
+
+void *client_handler(void *arg) {
+    int signedIn = 0, n;
+    char buf[MAXLINE];
+    pthread_detach(pthread_self());
+    int connfd = *((int *)arg);
+    printf("%s\n", "Received request...");
+    char username[255], password[255];
+    while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
+    	char prin[MAXLINE];
+     	buf[n] = '\0';
+      	if (signedIn == 0) {
+      	    strcpy(username, buf);
+      	    NODE *tmp = head;
+      	    int flag = 0;
+      	    while (NULL != tmp) {
+               if (strcmp(tmp->username, username) == 0) {
+               strcpy(prin, "Insert password");
+            	send(connfd, prin, strlen(prin), 0);
+            	flag = 1;
+            	int count = 0;
+            	do {
+            	    n = recv(connfd, buf, MAXLINE, 0); 
+            	    buf[n] = '\0';
+    		    strcpy(password, buf);
+            	    if (strcmp(tmp->password, password) == 0) {
+            	        if (tmp->status != 1) { 
+            	    	    strcpy(prin, "Account not ready");
+            	            send(connfd, prin, strlen(prin), 0);
+            	        }
+            	    	else { 
+            	    	    strcpy(prin, "OK");
+            	            send(connfd, prin, strlen(prin), 0);
+            	    	    signedIn = 1;
+            	    	    strcpy(clients[dem].username, username);
+            	    	    clients[dem].connfd = connfd;
+            	    	    dem ++;
+            	    	}		
+            	        break;
+                    } else {
+            	        count ++;
+            	    	strcpy(prin, "not OK\n");
+            	        send(connfd, prin, strlen(prin), 0);
+            	        if (count < 3) {
+            	            strcpy(prin, "Insert password");
+            	            send(connfd, prin, strlen(prin), 0);
+            	        }
+            	    }
+            	} while (count != 3);
+            	if (count == 3) {
+            	    strcpy(prin, "Account is blocked");
+            	    send(connfd, prin, strlen(prin), 0);
+            	    tmp->status = 0;
+                    printList(head);
+            	}	
+            	break;
+          }
+          tmp = tmp->pNext;
+	}
+   	if (flag == 0) { 				
+   	    strcpy(prin, "Wrong account");
+      	    send(connfd, prin, strlen(prin), 0);}
+        }
+        else {
+            int flag;
+            if (strcmp(buf, "bye") != 0) {
+    	    flag = 0;
+    	    for (int i = 0; i < strlen(buf); i ++) {
+    	      	if ((buf[i] >= 48 && buf[i] <= 57) || (buf[i] >= 65 && buf[i] <= 90) || (buf[i] >= 97 && buf[i] <= 122)) {
+    	    	} else {
+    	    	    strcpy(prin, "Error");
+            	    send(connfd, prin, strlen(prin), 0);
+    	    	    flag = 1;
+    	    	    break;
+    	    	}
+    	    }
+    	    if (flag == 0) {
+    	        char mahoa1[255], mahoa2[255];
+    	        int m = 0, k = 0;
+    	        for (int i = 0; i < strlen(buf); i ++)
+    	            if (buf[i] >= 48 && buf[i] <= 57) {
+    	     	    	mahoa1[m] = buf[i];
+    	      	    	m ++;
+    	            }
+    	            else {
+    	   	    	mahoa2[k] = buf[i];
+    	   	    	k ++;
+    	            }
+    	       	mahoa1[m] = '\0';
+    	    	    	mahoa2[k] = '\0';
+    	    	    	strcat(mahoa1, mahoa2);
+    	    	    	strcpy(prin, mahoa1);
+    	    	    	
+    	    	    	
+            	        send(connfd, prin, strlen(prin), 0);
+            	        sendTo(buf, connfd, username);
+            	        
+           }
+    } else {
+        strcpy(prin, "Goodbye ");
+        strcat(prin, username);
+        send(connfd, prin, strlen(prin), 0);
+        for (int i = 0; i < dem; i ++) 
+            if (clients[i].connfd == connfd && strcmp(clients[i].username, username) == 0) {
+                clients[i].connfd = 0;
+                strcpy(clients[i].username, "");
+            }
+    }
+ }
+}
+if (n < 0) {
+    perror("Read error");
+    exit(1);
+}
+close(connfd);
+}
+
 
 int main(int argc, char *argv[]) {
     openFile();
@@ -96,10 +234,11 @@ int main(int argc, char *argv[]) {
     } else return 0;
     
     int listenfd, connfd, n, PORT = atoi(portNumber);
+    pthread_t recvt;
     pid_t childpid;
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
-    char buf[MAXLINE];
+    
     
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
     	perror("socket failed");
@@ -122,114 +261,14 @@ int main(int argc, char *argv[]) {
     }
     
     printf("%s\n", "Server running...waiting for connections.");
-    signal(SIGCHLD, sig_chld);
     for (;;) {
     	connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
     	if (connfd < 0) exit(-1);
-    	if ( (pid = fork()) == 0) {
-    	    printf("%s\n", "Received request...");
-    	    char username[255], password[255];
-    	    
-    	    while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
-    	        char prin[MAXLINE];
-    	    	buf[n] = '\0';
-    	    	if (signedIn == 0) {
-    	    	    strcpy(username, buf);
-    	    	    NODE *tmp = head;
-    	    	    int flag = 0;
-    	    	    while (NULL != tmp) {
-                        if (strcmp(tmp->username, username) == 0) {
-            	            strcpy(prin, "Insert password");
-            	            send(connfd, prin, strlen(prin), 0);
-            	    	    flag = 1;
-            	    	    int count = 0;
-            	    	    do {
-            		    	n = recv(connfd, buf, MAXLINE, 0); 
-            		    	buf[n] = '\0';
-    			    	strcpy(password, buf);
-            		    	if (strcmp(tmp->password, password) == 0) {
-            	    	            if (tmp->status != 1) { 
-            	    	               strcpy(prin, "Account not ready");
-            	        	       send(connfd, prin, strlen(prin), 0);
-            	        	     }
-            	    	    	 else { 
-            	    	    	     strcpy(prin, "OK");
-            	        	     send(connfd, prin, strlen(prin), 0);
-            	    		     signedIn = 1;
-            	    		 }		
-            	            	break;
-                	    	} else {
-            	    	            count ++;
-            	    	            strcpy(prin, "not OK\n");
-            	        	    send(connfd, prin, strlen(prin), 0);
-            	        	    if (count != 3) {
-            	        	        strcpy(prin, "Insert password");
-            	        	    	send(connfd, prin, strlen(prin), 0);
-            	        	    }
-            	    	       }
-            	    	} while (count != 3);
-            	 	if (count == 3) {
-            		    strcpy(prin, "Account is blocked");
-            	            send(connfd, prin, strlen(prin), 0);
-            		    tmp->status = 0;
-                	    printList(head);
-            		}	
-            		break;
-             	    }
-             	tmp = tmp->pNext;
-    	   	}
-    	   	if (flag == 0) { 				
-    	   	    strcpy(prin, "Wrong account");
-            	    send(connfd, prin, strlen(prin), 0);}
-    	    }
-    	    
-    	    else {
-    	        int flag;
-    	    	if (strcmp(buf, "bye") != 0) {
-    	            flag = 0;
-    	            for (int i = 0; i < strlen(buf); i ++) {
-    	    	    	if ((buf[i] >= 48 && buf[i] <= 57) || 				(buf[i] >= 65 && buf[i] <= 90) || 					(buf[i] >= 97 && buf[i] <= 122)) {
-    	    	    	} else {
-    	    	            strcpy(prin, "Error");
-            	            send(connfd, prin, strlen(prin), 0);
-    	    	            flag = 1;
-    	    	            break;
-    	    	    	}
-    	            }
-    	    	    if (flag == 0) {
-    	    	        char mahoa1[255], mahoa2[255];
-    	    	        int m = 0, k = 0;
-    	    	        for (int i = 0; i < strlen(buf); i ++)
-    	    	            if (buf[i] >= 48 && buf[i] <= 57) {
-    	    	   	    	mahoa1[m] = buf[i];
-    	    	   	    	m ++;
-    	    	            }
-    	    	            else {
-    	    	   	    	mahoa2[k] = buf[i];
-    	    	   	    	k ++;
-    	    	            }
-    	    	    	mahoa1[m] = '\0';
-    	    	    	mahoa2[k] = '\0';
-    	    	    	strcat(mahoa1, mahoa2);
-    	    	    	strcpy(prin, mahoa1);
-            	        send(connfd, prin, strlen(prin), 0);
-    	           }
-    	        } else {
-    	            
-    	            strcpy(prin, "Goodbye ");
-    	            strcat(prin, username);
-    	            send(connfd, prin, strlen(prin), 0);
-    	            signedIn = 0;
-    	            //return 0;
-    	        }
-            }
-    	}
-    	if (n < 0) {
-    	    perror("Read error");
-    	    exit(1);
-    	}
-    	close(connfd);
-    } }
+    	
+    	pthread_mutex_lock(&mutex);
+    	pthread_create(&recvt, NULL, (void *)client_handler, &connfd);
+    	pthread_mutex_unlock(&mutex);
+    } 
     close(listenfd);
     return 0;
  }
